@@ -1,6 +1,6 @@
 import Cookies from 'js-cookie'
 
-const KEY = 'token_key'
+const KEY = 'acw_tc'
 
 export function getCookie() {
   return Cookies.get(KEY)

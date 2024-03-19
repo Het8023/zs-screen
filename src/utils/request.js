@@ -1,7 +1,7 @@
 import axios from 'axios'
-import { getCookie } from './cookie'
+import { getCookie } from '@/utils/auth'
 const service = axios.create({
-  baseURL: 'https://api-hmzs.itheima.net/v1',
+  baseURL: import.meta.env.VITE_APP_BASE_API,
   timeout: 5000 // request timeout
 })
 
@@ -9,6 +9,7 @@ const service = axios.create({
 service.interceptors.request.use(
   (config) => {
     const token = getCookie()
+    console.log('token', token)
     if (token) {
       config.headers.Authorization = token
     }
