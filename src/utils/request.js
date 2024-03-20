@@ -9,7 +9,7 @@ const service = axios.create({
 service.interceptors.request.use(
   (config) => {
     const token = getCookie()
-    console.log('token', token)
+    // console.log('token', token)
     if (token) {
       config.headers.Authorization = token
     }
