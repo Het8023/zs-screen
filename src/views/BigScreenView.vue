@@ -54,13 +54,43 @@
         <div class="pie-chart"></div>
       </div>
     </div>
+    <div class="model-container">
+      <LoadingComponent :loading="loadStatus"></LoadingComponent>
+      <!-- 准备3D渲染节点 -->
+      <canvas class="canvas-3d" ref="ref3d"></canvas>
+      <!-- 点击信息 -->
+      <div v-if="modelStatus && (areaInfo || buildingInfo)" id="t" :class="{ animate__zoomIn: modelStatus }"
+        :style="{ left: x + 'px', top: y + 'px' }" class="tip animate__animated">
+        <span class="close" @mousedown.stop="close"></span>
+        <div v-if="buildingInfo">
+          <div class="header">{{ buildingInfo.name }}</div>
+          <div>
+            <div>楼层数：{{ buildingInfo.floors }}</div>
+            <div>总面积:{{ buildingInfo.area }}</div>
+            <div>承租单位:{{ buildingInfo.rentEnterpriseName ? buildingInfo.rentEnterpriseName : '暂无' }}</div>
+          </div>
+        </div>
+        <div v-if="areaInfo">
+          <div class="header">{{ areaInfo.areaName }}</div>
+          <div>
+            <div>空闲车位：{{ areaInfo.remainSpaceNum }}</div>
+            <div>占用车位:{{ areaInfo.occupancySpaceNum }}</div>
+            <div>停车位数:{{ areaInfo.totalSpaceNum }}</div>
+            <div>面积:{{ areaInfo.areaProportion }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </v-scale-screen>
 </template>
 <script setup>
 import * as echarts from 'echarts';
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { getParkInfoApi } from '@/api/park'
 import VScaleScreen from 'v-scale-screen'
+import { Application } from '@splinetool/runtime'
+import LoadingComponent from '@/components/LoadingComponent.vue'
+import { getBuildingInfoApi, getAreaInfoApi } from '@/api/park'
 
 // 获取数据
 const parkInfo = ref({})
@@ -73,7 +103,6 @@ const getlist = async () => {
     console.log(error);
   }
 }
-
 // 渲染年度分析收入表
 const initBarChart = () => {
   // 获取图表数据
@@ -143,7 +172,6 @@ const initBarChart = () => {
   // 使用刚指定的配置项和数据显示图表。
   barChart.setOption(option);
 }
-
 // 渲染园区产业分布
 const initPieChart = () => {
   const { parkIndustry } = parkInfo.value
@@ -201,11 +229,98 @@ const initPieChart = () => {
 }
 
 
+// 初始化3d模型
+const ref3d = ref(null)
+const loadStatus = ref(false)
+const showModel = ref(false)
+let x = ref()
+let y = ref()
+const buildingInfo = ref({})
+const areaInfo = ref({})
+const init3dModel = () => {
+  loadStatus.value = true
+  // 实例化解析器
+  let spline = new Application(ref3d.value)
+  // 拉取模型
+  spline.load('https://fe-hmzs.itheima.net/scene.splinecode').then(res => {
+    console.log('加载完毕');
+    loadStatus.value = false
+
+
+    // 点击事件
+    spline.addEventListener('mouseDown', (e) => {
+      // console.log('123123', e);
+      x.value = ''
+      y.value = ''
+      buildingInfo.value = null
+      areaInfo.value = null
+      const params = e.target
+
+      if (params.name.indexOf('办公楼') !== -1) {
+        getBuildingInfo(params.id)
+        window.addEventListener('mousedown', (e) => {
+          buildingInfo.value = null
+          if (params.id) {
+            x.value = e.offsetX
+            y.value = e.offsetY
+          }
+        })
+      } else if (params.name.indexOf('停车场') !== -1) {
+        getAreaInfo(params.id)
+        window.addEventListener('mousedown', (e) => {
+          areaInfo.value = null
+          if (params.id) {
+            x.value = e.offsetX
+            y.value = e.offsetY
+          }
+        })
+      }
+      showModel.value = true
+    })
+  })
+}
+
+// 获取楼宇数据
+const getBuildingInfo = async (id) => {
+  try {
+    const res = await getBuildingInfoApi(id)
+    buildingInfo.value = res.data
+  } catch (error) {
+    console.log(error);
+  }
+}
+// 获取停车场数据
+const getAreaInfo = async (id) => {
+  try {
+    const res = await getAreaInfoApi(id)
+    areaInfo.value = res.data
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+const modelStatus = computed(() => {
+  if (x.value && y.value) {
+    console.log(x.value, y.value);
+    return true
+  } else {
+    return false
+  }
+})
+
+const close = () => {
+  x.value = ''
+  y.value = ''
+  console.log(x.value, y.value)
+}
+
+
 
 onMounted(async () => {
   await getlist()
   initBarChart()
   initPieChart()
+  init3dModel()
 })
 
 </script>
@@ -320,6 +435,35 @@ onMounted(async () => {
       margin: 0 auto;
       padding-bottom: 20px;
       width: 80%;
+    }
+  }
+}
+
+.model-container {
+  width: 100%;
+  height: 100%;
+  background: black;
+
+  .tip {
+    width: 281px;
+    height: 140px;
+    background: url('@/assets/modal-bg.png') no-repeat;
+    background-size: cover;
+    color: #fff;
+    //display: none;
+    position: absolute;
+    //left: 0;
+    //top: 0;
+
+    .close {
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      width: 20px;
+      height: 20px;
+      background: url('@/assets/modal-close.png') no-repeat;
+      background-size: cover;
+      cursor: pointer;
     }
   }
 }
